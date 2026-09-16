@@ -1,7 +1,7 @@
 package api
 
 import (
-	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -10,57 +10,67 @@ import (
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/provider"
 )
 
-// SearchHandler handles GET /api/search
+// SearchHandler handles GET /api/search.
+//
+// Mirrors lrclib.net: an empty query set and a resultless query both answer
+// `[]` with 200 rather than 404, and results carry their lyrics inline.
 func SearchHandler(store cache.Store, dispatcher *provider.Dispatcher) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		q := r.URL.Query()
-		query := strings.TrimSpace(q.Get("q"))
-		trackName := strings.TrimSpace(q.Get("track_name"))
-		artistName := strings.TrimSpace(q.Get("artist_name"))
+		params := r.URL.Query()
+
+		query := strings.TrimSpace(params.Get("q"))
+		trackName := strings.TrimSpace(params.Get("track_name"))
+		artistName := strings.TrimSpace(params.Get("artist_name"))
+		albumName := strings.TrimSpace(params.Get("album_name"))
 
 		if query == "" && trackName == "" && artistName == "" {
 			writeJSON(w, http.StatusOK, []*model.LyricResponse{})
 			return
 		}
 
-		targetTitle := trackName
-		if targetTitle == "" {
-			targetTitle = query
+		q := model.Query{
+			TrackName:  firstNonEmpty(trackName, query),
+			ArtistName: artistName,
+			AlbumName:  albumName,
 		}
 
-		log.Printf("[search-list] query=%q, track=%q, artist=%q", query, trackName, artistName)
+		slog.Debug("search requested",
+			"q", query, "track", trackName, "artist", artistName, "album", albumName)
 
-		_, validList, err := dispatcher.SearchAndScore(r.Context(), targetTitle, artistName, "", 0, 30.0)
+		items, err := dispatcher.Search(r.Context(), q)
 		if err != nil {
-			log.Printf("[search-list-error] %v", err)
+			slog.Error("provider search failed", "query", query, "error", err)
 			writeJSON(w, http.StatusOK, []*model.LyricResponse{})
 			return
 		}
 
-		var results []*model.LyricResponse
-		for _, item := range validList {
-			cacheKey := cache.GenerateCacheKey(item.TrackName, item.ArtistName)
-			respItem := &model.LyricResponse{
-				TrackName:    item.TrackName,
-				ArtistName:   item.ArtistName,
-				AlbumName:    item.AlbumName,
-				Duration:     item.Duration,
-				Instrumental: item.Instrumental,
-				PlainLyrics:  item.PlainLyrics,
-				SyncedLyrics: item.SyncedLyrics,
+		results := make([]*model.LyricResponse, 0, len(items))
+		for _, item := range items {
+			resp := newLyricResponse(
+				item.TrackName,
+				item.ArtistName,
+				item.AlbumName,
+				item.Duration,
+				item.Instrumental,
+				item.PlainLyrics,
+				item.SyncedLyrics,
+			)
+
+			// Cache under the *result's own* identity, not the query's. That
+			// is what lets a later /api/get with the same title, artist and
+			// duration find it, without different results of one search
+			// overwriting each other on a shared key.
+			key := cache.GenerateCacheKey(item.TrackName, item.ArtistName, item.Duration)
+			if id, err := store.Set(key, resp); err != nil {
+				slog.Error("cache write failed", "error", err)
+			} else {
+				resp.ID = id
 			}
 
-			// Save to cache or lookup ID
-			id, err := store.Set(cacheKey, respItem)
-			if err == nil {
-				respItem.ID = id
-			}
-			results = append(results, respItem)
+			results = append(results, resp)
 		}
 
-		if results == nil {
-			results = []*model.LyricResponse{}
-		}
+		slog.Info("search completed", "query", query, "results", len(results))
 
 		writeJSON(w, http.StatusOK, results)
 	}

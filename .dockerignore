@@ -1,0 +1,22 @@
+.git
+.github
+.gitignore
+.evalcache
+
+# Built artifacts and local cache data
+x-cyber-lrc-hub
+/evalcache
+data
+*.db
+*.db-wal
+*.db-shm
+*.test
+*.out
+
+# Docs and editor noise
+docs
+README.md
+LICENSE
+.idea
+.vscode
+.DS_Store

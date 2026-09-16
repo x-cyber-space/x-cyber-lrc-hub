@@ -11,6 +11,31 @@ var (
 	bracketRegex = regexp.MustCompile(`(?i)\([^)]*\)|\[[^\]]*\]|（[^）]*）|【[^】]*】|{[^}]*}`)
 )
 
+// NormalizeIdentity normalizes a field for *identity* comparison, mirroring
+// LRCLIB's matching rules as measured against the live service: lowercase,
+// strip bracketed modifiers, and collapse whitespace.
+//
+//	"Wildest Dreams"                  -> "wildest dreams"
+//	"Wildest  Dreams"                 -> "wildest dreams"   (double space)
+//	"Wildest Dreams (Taylor's Version)" -> "wildest dreams" (bracket stripped)
+//	"Wildest Dream"                   -> "wildest dream"    (no fuzzy matching)
+//
+// Punctuation is deliberately preserved, so this is stricter than
+// NormalizeText. The two must stay separate: NormalizeText exists to make
+// *scoring* forgiving, NormalizeIdentity exists to make *matching* exact.
+// Conflating them is what let "(Live)" and the studio take collapse onto one
+// cache row.
+func NormalizeIdentity(s string) string {
+	s = strings.ToLower(s)
+	s = bracketRegex.ReplaceAllString(s, " ")
+	return CollapseSpaces(s)
+}
+
+// CollapseSpaces trims and collapses every run of whitespace to one space.
+func CollapseSpaces(s string) string {
+	return strings.Join(strings.Fields(s), " ")
+}
+
 // NormalizeText normalizes song title or artist name by lowercasing,
 // removing bracketed modifiers, and removing non-alphanumeric/non-Han characters.
 func NormalizeText(s string) string {
