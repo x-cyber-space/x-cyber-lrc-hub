@@ -10,8 +10,8 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/lyrics"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/util"
 )
 
 // QQMusicProvider implements lyrics search for QQ Music
@@ -130,10 +130,10 @@ func (p *QQMusicProvider) FetchLyrics(ctx context.Context, candidate *model.Cand
 	rawLyric = strings.ReplaceAll(rawLyric, "\r\n", "\n")
 	synced := strings.TrimSpace(rawLyric)
 
-	plain := util.ExtractPlainLyrics(synced)
+	plain := lyrics.ExtractPlainLyrics(synced)
 	candidate.SyncedLyrics = synced
 	candidate.PlainLyrics = plain
-	candidate.Instrumental = util.IsInstrumental(plain, synced)
+	candidate.Instrumental = lyrics.IsInstrumental(plain, synced)
 
 	return nil
 }

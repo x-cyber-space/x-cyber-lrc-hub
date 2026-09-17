@@ -1,3 +1,9 @@
+// Package provider adapts the upstream lyrics platforms and queries them
+// concurrently.
+//
+// Each platform's wire format stays in its own file; shared work lives in the
+// lyrics, matching and scoring packages.
+
 package provider
 
 import (

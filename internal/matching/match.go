@@ -1,4 +1,11 @@
-package scoring
+// Package matching decides whether a candidate is the same track a request
+// asked for.
+//
+// This is a hard filter, not a ranking: identity is compared exactly (after
+// normalisation) and a mismatched artist is a contradiction rather than a
+// deduction. Ranking lives in the scoring package.
+
+package matching
 
 import (
 	"math"

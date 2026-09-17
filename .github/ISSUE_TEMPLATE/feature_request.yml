@@ -1,0 +1,35 @@
+name: Feature request
+description: Suggest a capability or behaviour change
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What are you trying to do that the project makes hard today?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+
+  - type: checkboxes
+    id: constraints
+    attributes:
+      label: Project constraints
+      description: |
+        These are load-bearing design decisions, not preferences. A proposal
+        that needs one of them relaxed should say so explicitly.
+      options:
+        - label: This does not require an external model or online service.
+        - label: This keeps `/api/get` a hard filter rather than a scored guess.
+        - label: This keeps the response shape compatible with `lrclib.net`.

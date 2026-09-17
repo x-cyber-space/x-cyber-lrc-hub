@@ -1,3 +1,6 @@
+// Package model holds the shared shapes: the LRCLIB response, the provider
+// candidate, and the incoming query.
+
 package model
 
 import "fmt"

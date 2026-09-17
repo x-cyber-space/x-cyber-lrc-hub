@@ -1,9 +1,13 @@
-package util
+// Package lyrics parses and renders LRC: plain-text extraction, instrumental
+// detection, and the lyricsfile document lrclib.net serves alongside them.
+//
+// It works on neutral types only. Platform-specific wire formats belong to the
+// provider that speaks them.
+
+package lyrics
 
 import (
-	"fmt"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
@@ -67,45 +71,4 @@ func IsInstrumental(plainLyrics, syncedLyrics string) bool {
 	}
 
 	return false
-}
-
-// KuwoLrcItem represents a single lyric line item from Kuwo API
-type KuwoLrcItem struct {
-	LineLyric string `json:"lineLyric"`
-	Time      string `json:"time"` // seconds as string, e.g. "12.34"
-}
-
-// FormatKuwoLrc converts Kuwo's lyric list to standard synced and plain LRC strings
-func FormatKuwoLrc(items []KuwoLrcItem) (syncedLyrics string, plainLyrics string) {
-	var syncedBuilder strings.Builder
-	var plainBuilder strings.Builder
-
-	for _, item := range items {
-		sec, err := strconv.ParseFloat(item.Time, 64)
-		if err != nil {
-			sec = 0
-		}
-
-		minutes := int(sec) / 60
-		seconds := sec - float64(minutes*60)
-		timeTag := fmt.Sprintf("[%02d:%05.2f]", minutes, seconds)
-
-		lineText := strings.TrimSpace(item.LineLyric)
-		if lineText == "" {
-			continue
-		}
-
-		if syncedBuilder.Len() > 0 {
-			syncedBuilder.WriteString("\n")
-			plainBuilder.WriteString("\n")
-		}
-
-		syncedBuilder.WriteString(timeTag)
-		syncedBuilder.WriteString(" ")
-		syncedBuilder.WriteString(lineText)
-
-		plainBuilder.WriteString(lineText)
-	}
-
-	return syncedBuilder.String(), plainBuilder.String()
 }

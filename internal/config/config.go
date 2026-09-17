@@ -1,3 +1,5 @@
+// Package config turns command-line flags into the runtime configuration.
+
 package config
 
 import (

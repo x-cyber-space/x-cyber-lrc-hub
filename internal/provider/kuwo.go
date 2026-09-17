@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/lyrics"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/util"
 )
 
 // KuwoProvider implements lyrics search for Kuwo Music
@@ -36,8 +36,16 @@ type kuwoSearchResp struct {
 
 type kuwoLyricResp struct {
 	Data struct {
-		Lrclist []util.KuwoLrcItem `json:"lrclist"`
+		Lrclist []kuwoLrcItem `json:"lrclist"`
 	} `json:"data"`
+}
+
+// kuwoLrcItem is one entry of Kuwo's lyric list. This is Kuwo's wire shape and
+// belongs to the Kuwo adapter, not to the shared lyrics package: Kuwo is the
+// only source that reports the line offset as a string of seconds.
+type kuwoLrcItem struct {
+	LineLyric string `json:"lineLyric"`
+	Time      string `json:"time"`
 }
 
 func (p *KuwoProvider) Search(ctx context.Context, keyword string, limit int) ([]*model.Candidate, error) {
@@ -117,10 +125,25 @@ func (p *KuwoProvider) FetchLyrics(ctx context.Context, candidate *model.Candida
 		return fmt.Errorf("no lyrics found for kuwo id %s", candidate.SongID)
 	}
 
-	synced, plain := util.FormatKuwoLrc(data.Data.Lrclist)
+	synced, plain := lyrics.FormatSynced(timedLines(data.Data.Lrclist))
 	candidate.SyncedLyrics = synced
 	candidate.PlainLyrics = plain
-	candidate.Instrumental = util.IsInstrumental(plain, synced)
+	candidate.Instrumental = lyrics.IsInstrumental(plain, synced)
 
 	return nil
+}
+
+// timedLines converts Kuwo's lyric list into the neutral shape the shared LRC
+// renderer consumes. An unparseable offset is treated as zero rather than
+// dropping the line, so a malformed timestamp cannot silently delete lyrics.
+func timedLines(items []kuwoLrcItem) []lyrics.TimedLine {
+	lines := make([]lyrics.TimedLine, 0, len(items))
+	for _, item := range items {
+		start, err := strconv.ParseFloat(item.Time, 64)
+		if err != nil {
+			start = 0
+		}
+		lines = append(lines, lyrics.TimedLine{Start: start, Text: item.LineLyric})
+	}
+	return lines
 }

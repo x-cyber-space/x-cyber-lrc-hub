@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/lyrics"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/util"
 )
 
 // NetEaseProvider implements lyrics search for NetEase Cloud Music
@@ -124,10 +124,10 @@ func (p *NetEaseProvider) FetchLyrics(ctx context.Context, candidate *model.Cand
 	}
 
 	synced := strings.TrimSpace(data.Lrc.Lyric)
-	plain := util.ExtractPlainLyrics(synced)
+	plain := lyrics.ExtractPlainLyrics(synced)
 	candidate.SyncedLyrics = synced
 	candidate.PlainLyrics = plain
-	candidate.Instrumental = util.IsInstrumental(plain, synced)
+	candidate.Instrumental = lyrics.IsInstrumental(plain, synced)
 
 	return nil
 }

@@ -61,11 +61,11 @@ __  __   ____ y b e r   _      ____    ____     _   _       _
 git clone https://github.com/x-cyber-space/x-cyber-lrc-hub.git
 cd x-cyber-lrc-hub
 
-# 编译为单一静态二进制程序（推荐用 Makefile，它会注入版本号）
+# 编译到 bin/（推荐，Makefile 会自动注入版本号）
 make build
 
 # 或者手动编译
-go build -o x-cyber-lrc-hub ./cmd/server
+go build -o bin/x-cyber-lrc-hub ./cmd/server
 ```
 
 `make build` 等价于：
@@ -73,7 +73,7 @@ go build -o x-cyber-lrc-hub ./cmd/server
 ```bash
 CGO_ENABLED=0 go build -trimpath \
   -ldflags "-s -w -X main.version=$(git describe --tags --always)" \
-  -o x-cyber-lrc-hub ./cmd/server
+  -o bin/x-cyber-lrc-hub ./cmd/server
 ```
 
 版本号只在 `cmd/server/main.go` 里声明一次，通过 `-ldflags -X` 注入，不再硬编码在多处。
@@ -82,10 +82,10 @@ CGO_ENABLED=0 go build -trimpath \
 
 ```bash
 # 默认端口 3300，缓存数据库路径 ./data/lyrics.db，缓存有效期 30 天
-./x-cyber-lrc-hub
+./bin/x-cyber-lrc-hub
 
 # 自定义端口、缓存路径与缓存有效期
-./x-cyber-lrc-hub -port 3300 -cache ./data/lyrics.db -cache-ttl 720h -log-level info
+./bin/x-cyber-lrc-hub -port 3300 -cache ./data/lyrics.db -cache-ttl 720h -log-level info
 ```
 
 命令行参数支持：
@@ -105,6 +105,34 @@ docker run -d --name lrc-hub -p 3300:3300 -v lrc-data:/data x-cyber-lrc-hub:late
 ```
 
 镜像基于 `alpine`，以非 root 用户运行，缓存持久化在 `/data` 卷上。
+
+### 4. 预编译二进制
+
+每个 `v*` 标签都会由 GitHub Actions 构建并发布 linux / macOS / Windows（amd64、arm64）的静态二进制包，附带 `checksums.txt`。见 [Releases](https://github.com/x-cyber-space/x-cyber-lrc-hub/releases)。
+
+---
+
+## 项目结构
+
+```
+cmd/server/          程序入口（flag 解析、启动、优雅退出）
+internal/
+  api/               LRCLIB 协议层：路由、中间件、两个端点
+  matching/          匹配闸门：归一化、相似度、歌手集合、身份、MatchTrack
+  scoring/           加权打分：只用于 /api/search 的排序
+  provider/          四个平台的适配器 + 并发调度器
+  cache/             SQLite 缓存（键、TTL、复核谓词）
+  lyrics/            LRC 解析/生成、lyricsfile 渲染
+  model/             LRCLIB 响应、候选、查询的数据结构
+  config/            flag → Config
+  logging/           slog 分级日志
+docs/SPEC.md         架构与开发规范
+```
+
+两条关键的分层约定：
+
+- **`matching` 与 `scoring` 是分开的。** `matching` 回答"这是不是同一首歌"（`/api/get` 的闸门），`scoring` 回答"哪个候选更好"（`/api/search` 的排序）。把两者混在一起，正是"满分歌名掩盖错误歌手"这类 bug 的来源。
+- **平台的线上格式归平台自己。** 例如酷我把行时间戳表示成字符串秒数，`kuwoLrcItem` 就定义在 `provider/kuwo.go`；`lyrics` 只接受中性的 `TimedLine`。项目里没有 `util` / `common` / `helpers` 这类包。
 
 ---
 
@@ -312,17 +340,30 @@ sha256( 归一化歌名 \0 归一化歌手 \0 时长分桶 )[0:16]
 
 ```bash
 make help        # 列出所有目标
+make check       # 一次跑完 CI 的全部检查：fmt-check + vet + test + lint
 make fmt         # gofmt
 make vet         # go vet
 make test        # 离线测试（含 -race），不需要网络
 make test-all    # 全部测试，含真实平台 smoke test（需要网络）
-make lint        # golangci-lint（需自行安装）
-make build       # 编译并注入版本号
+make lint        # golangci-lint
+make build       # 编译到 bin/ 并注入版本号
 ```
 
 `make test` 使用 `-short`，会跳过需要访问网易云 / QQ / 酷狗 / 酷我的 smoke test —— 那条测试依赖第三方平台可用性，放进 CI 会让构建变得不稳定。匹配、缓存、协议层的行为全部由离线测试覆盖（含 stub provider 驱动的 dispatcher 测试）。
 
-CI（`.github/workflows/ci.yml`）在每次 push / PR 上执行：`gofmt` 校验、`go build`、`go vet`、`go test -short -race`，并在 `linux/amd64`、`linux/arm64`、`darwin/arm64`、`windows/amd64` 上做 `CGO_ENABLED=0` 交叉编译验证 —— 因为"单一静态二进制"是这个项目的核心承诺，必须每个目标都能真的构建出来。
+`make lint` 会先找 PATH 里的 `golangci-lint`，找不到则回退到 `$(go env GOPATH)/bin/golangci-lint`，因此不把 `~/go/bin` 加进 PATH 也能用。需要 v2 版本：
+
+```bash
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
+```
+
+CI（`.github/workflows/ci.yml`）在每次 push / PR 上执行：`gofmt` 校验、`go build`、`go vet`、`go test -short -race`、`golangci-lint`，并在 `linux/amd64`、`linux/arm64`、`darwin/arm64`、`windows/amd64` 上做 `CGO_ENABLED=0` 交叉编译验证 —— 因为"单一静态二进制"是这个项目的核心承诺，必须每个目标都能真的构建出来。
+
+推送 `v*` 标签会触发 `.github/workflows/release.yml`，先跑一遍同样的 `make check`，再用 GoReleaser 构建各平台产物并创建 draft release。
+
+其余文件：`CHANGELOG.md`、`CONTRIBUTING.md`、`SECURITY.md`、`docs/SPEC.md`。
+
+发布配置（`.goreleaser.yml`）可以在本地校验：`make release-check`。注意用 docker 跑 `goreleaser release --snapshot` 会在 `dist/` 留下 **root 属主**的文件，所以本地一般只做校验，真正的打包交给 CI。
 
 ---
 

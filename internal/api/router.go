@@ -1,3 +1,10 @@
+// Package api implements the LRCLIB-compatible HTTP surface: routing,
+// middleware, and the two read endpoints.
+//
+// Response field sets and error bodies are verified against the live
+// lrclib.net service rather than assumed; see the compatibility table in the
+// README before changing them.
+
 package api
 
 import (

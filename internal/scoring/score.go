@@ -1,11 +1,25 @@
+// Package scoring ranks candidates for /api/search.
+//
+// It does not decide acceptance — deciding whether two songs are the same is
+// matching's job — and its output must never be used as an acceptance
+// threshold.
+
 package scoring
 
 import (
 	"math"
 	"strings"
+
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/matching"
 )
 
-// CalculateScore computes the fitness score (0-100) between target song metadata and candidate metadata
+// CalculateScore computes the fitness score (0-100) between target song
+// metadata and candidate metadata.
+//
+// This is a RANKING function, not an acceptance test. A perfect title alone
+// contributes 45 points, so it can carry a completely unrelated artist well
+// past any plausible total threshold; deciding whether a candidate is the same
+// track at all is matching.MatchTrack's job, not this function's.
 func CalculateScore(targetTitle, targetArtist string, targetDuration float64,
 	candTitle, candArtist string, candDuration float64) float64 {
 
@@ -21,8 +35,8 @@ func CalculateScore(targetTitle, targetArtist string, targetDuration float64,
 }
 
 func calculateTitleScore(target, cand string) float64 {
-	normTarget := NormalizeText(target)
-	normCand := NormalizeText(cand)
+	normTarget := matching.NormalizeText(target)
+	normCand := matching.NormalizeText(cand)
 
 	if normTarget == "" || normCand == "" {
 		return 0.0
@@ -36,17 +50,17 @@ func calculateTitleScore(target, cand string) float64 {
 		return 38.0
 	}
 
-	sim := BigramJaccard(normTarget, normCand)
+	sim := matching.BigramJaccard(normTarget, normCand)
 	return sim * 45.0
 }
 
 func calculateArtistScore(target, cand string) float64 {
-	if IsUnknownArtist(target) {
+	if matching.IsUnknownArtist(target) {
 		return 20.0
 	}
 
-	normTarget := NormalizeText(target)
-	normCand := NormalizeText(cand)
+	normTarget := matching.NormalizeText(target)
+	normCand := matching.NormalizeText(cand)
 
 	if normTarget == "" || normCand == "" {
 		return 10.0
@@ -60,7 +74,7 @@ func calculateArtistScore(target, cand string) float64 {
 		return 28.0
 	}
 
-	sim := BigramJaccard(normTarget, normCand)
+	sim := matching.BigramJaccard(normTarget, normCand)
 	return sim * 30.0
 }
 

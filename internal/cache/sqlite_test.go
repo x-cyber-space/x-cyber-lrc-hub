@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/matching"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/scoring"
 )
 
 func newTestStore(t *testing.T) *SQLiteStore {
@@ -188,9 +188,9 @@ func TestGenerateCacheKeyIdentity(t *testing.T) {
 
 	// The bucket must stay narrower than the ±3s matching window, otherwise a
 	// cache hit could be re-validated and rejected, causing a refetch loop.
-	if scoring.DurationBucketSeconds >= scoring.DurationWindowSeconds {
+	if matching.DurationBucketSeconds >= matching.DurationWindowSeconds {
 		t.Fatalf("duration bucket %v is not narrower than the %v match window",
-			scoring.DurationBucketSeconds, scoring.DurationWindowSeconds)
+			matching.DurationBucketSeconds, matching.DurationWindowSeconds)
 	}
 }
 

@@ -1,4 +1,4 @@
-package scoring
+package matching
 
 // BigramJaccard calculates similarity between two strings using bigrams.
 // Returns a value between 0.0 and 1.0.

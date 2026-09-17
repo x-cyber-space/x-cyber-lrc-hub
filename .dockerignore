@@ -1,21 +1,37 @@
+# Keep the build context to what `go build` actually needs.
+
 .git
 .github
 .gitignore
-.evalcache
+.gitattributes
+.editorconfig
+.golangci.yml
+.goreleaser.yml
 
-# Built artifacts and local cache data
-x-cyber-lrc-hub
-/evalcache
+# Local caches and build output
+bin
+dist
+workcache
+.evalcache
+.lintcache
+
+# Runtime data
 data
 *.db
 *.db-wal
 *.db-shm
+
+# Test artifacts
 *.test
 *.out
+coverage.*
 
 # Docs and editor noise
 docs
 README.md
+CHANGELOG.md
+CONTRIBUTING.md
+SECURITY.md
 LICENSE
 .idea
 .vscode

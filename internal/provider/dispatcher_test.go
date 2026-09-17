@@ -7,8 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/matching"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/scoring"
 )
 
 // stubProvider is an offline Provider double. Every test in this file runs
@@ -311,7 +311,7 @@ func TestSearchFloorIsGentlerThanTheMatcher(t *testing.T) {
 		t.Fatalf("expected the live take to be searchable, got %d results", len(got))
 	}
 
-	if scoring.MatchTrack(query, candidate.TrackName, candidate.ArtistName, candidate.AlbumName, candidate.Duration) == scoring.MatchNone {
+	if matching.MatchTrack(query, candidate.TrackName, candidate.ArtistName, candidate.AlbumName, candidate.Duration) == matching.MatchNone {
 		t.Skip("the live take is inside the relaxed matcher too; the floor-vs-matcher distinction is covered elsewhere")
 	}
 }
@@ -326,8 +326,8 @@ func TestSearchAndCacheIdentityAgree(t *testing.T) {
 
 	// The two durations must land in the same identity bucket, which is what
 	// makes them one cache row...
-	if scoring.IdentityKey(near.TrackName, near.ArtistName, near.Duration) !=
-		scoring.IdentityKey(slightlyOff.TrackName, slightlyOff.ArtistName, slightlyOff.Duration) {
+	if matching.IdentityKey(near.TrackName, near.ArtistName, near.Duration) !=
+		matching.IdentityKey(slightlyOff.TrackName, slightlyOff.ArtistName, slightlyOff.Duration) {
 		t.Fatal("test premise broken: these two should share an identity bucket")
 	}
 
@@ -365,7 +365,7 @@ func TestSearchResultIDsAreUnique(t *testing.T) {
 
 	seen := make(map[string]string)
 	for _, c := range got {
-		key := scoring.IdentityKey(c.TrackName, c.ArtistName, c.Duration)
+		key := matching.IdentityKey(c.TrackName, c.ArtistName, c.Duration)
 		if prev, dup := seen[key]; dup {
 			t.Fatalf("identity %q reported twice: %q and %q", key, prev, c.TrackName)
 		}

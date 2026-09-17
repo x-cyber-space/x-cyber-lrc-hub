@@ -1,3 +1,5 @@
+// Command server runs the x-cyber-lrc-hub lyrics proxy.
+
 package main
 
 import (

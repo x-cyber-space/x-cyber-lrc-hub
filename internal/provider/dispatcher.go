@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/matching"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/scoring"
 )
@@ -69,14 +70,14 @@ func NewDispatcherWith(providers ...Provider) *Dispatcher {
 // rankedCandidate pairs a candidate with how it matched the query.
 type rankedCandidate struct {
 	cand  *model.Candidate
-	stage scoring.MatchStage
+	stage matching.MatchStage
 }
 
 // Get resolves a single confident match, mirroring lrclib.net's /api/get.
 //
 // The path is a hard filter, not a ranking: a candidate must satisfy the
 // normalised identity (and the album/duration filters when supplied) either
-// exactly or under the controlled relaxation in scoring.MatchTrack. Surviving
+// exactly or under the controlled relaxation in matching.MatchTrack. Surviving
 // candidates are ordered by strictness, then duration proximity, then the
 // fuzzy score as a final tie-break.
 //
@@ -96,8 +97,8 @@ func (d *Dispatcher) Get(ctx context.Context, q model.Query) (*model.Candidate, 
 
 	matched := make([]rankedCandidate, 0, len(all))
 	for _, cand := range all {
-		stage := scoring.MatchTrack(q, cand.TrackName, cand.ArtistName, cand.AlbumName, cand.Duration)
-		if stage == scoring.MatchNone {
+		stage := matching.MatchTrack(q, cand.TrackName, cand.ArtistName, cand.AlbumName, cand.Duration)
+		if stage == matching.MatchNone {
 			continue
 		}
 		// The fuzzy score is not a gate here; it only breaks ties.
@@ -113,8 +114,8 @@ func (d *Dispatcher) Get(ctx context.Context, q model.Query) (*model.Candidate, 
 		if matched[i].stage != matched[j].stage {
 			return matched[i].stage > matched[j].stage // MatchExact first
 		}
-		di := scoring.DurationDistance(q.Duration, matched[i].cand.Duration)
-		dj := scoring.DurationDistance(q.Duration, matched[j].cand.Duration)
+		di := matching.DurationDistance(q.Duration, matched[i].cand.Duration)
+		dj := matching.DurationDistance(q.Duration, matched[j].cand.Duration)
 		if di != dj {
 			return di < dj
 		}
@@ -167,7 +168,7 @@ func (d *Dispatcher) Search(ctx context.Context, q model.Query) ([]*model.Candid
 
 	items := make([]rankedCandidate, 0, len(shortlist))
 	for _, cand := range shortlist {
-		stage := scoring.MatchTrack(q, cand.TrackName, cand.ArtistName, cand.AlbumName, cand.Duration)
+		stage := matching.MatchTrack(q, cand.TrackName, cand.ArtistName, cand.AlbumName, cand.Duration)
 		items = append(items, rankedCandidate{cand: cand, stage: stage})
 	}
 
@@ -226,7 +227,7 @@ func (d *Dispatcher) searchAll(ctx context.Context, q model.Query) ([]*model.Can
 // buildKeyword composes the provider search keyword.
 func buildKeyword(q model.Query) string {
 	parts := []string{strings.TrimSpace(q.TrackName)}
-	if !scoring.IsUnknownArtist(q.ArtistName) {
+	if !matching.IsUnknownArtist(q.ArtistName) {
 		parts = append(parts, strings.TrimSpace(q.ArtistName))
 	}
 	// Join-then-trim avoids the leading space an empty title used to leave
@@ -290,12 +291,12 @@ func (d *Dispatcher) fetchLyrics(ctx context.Context, items []rankedCandidate) [
 
 // identityKey collapses the several platforms that offer the same recording.
 //
-// It delegates to scoring.IdentityKey so that deduplication and the cache key
+// It delegates to matching.IdentityKey so that deduplication and the cache key
 // agree by construction: if two candidates collapse into one result here, they
 // also occupy one cache row, and the two can never disagree about whether they
 // are the same edit.
 func identityKey(trackName, artistName string, duration float64) string {
-	return scoring.IdentityKey(trackName, artistName, duration)
+	return matching.IdentityKey(trackName, artistName, duration)
 }
 
 func dedupeRanked(items []rankedCandidate) []rankedCandidate {

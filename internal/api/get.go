@@ -7,9 +7,9 @@ import (
 	"strings"
 
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/cache"
+	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/lyrics"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/model"
 	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/provider"
-	"github.com/x-cyber-space/x-cyber-lrc-hub/internal/util"
 )
 
 // GetHandler handles GET /api/get.
@@ -124,7 +124,7 @@ func newLyricResponse(trackName, artistName, albumName string, duration float64,
 		Instrumental: instrumental,
 		PlainLyrics:  model.StrPtr(plainLyrics),
 		SyncedLyrics: model.StrPtr(syncedLyrics),
-		LyricsFile: util.BuildLyricsFile(
+		LyricsFile: lyrics.BuildLyricsFile(
 			trackName, artistName, albumName, duration, instrumental, syncedLyrics, plainLyrics,
 		),
 	}

@@ -1,0 +1,43 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  # Lets you dry-run the whole pipeline without cutting a tag.
+  workflow_dispatch:
+    inputs:
+      snapshot:
+        description: Build a snapshot release instead of a tagged one
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+jobs:
+  goreleaser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # GoReleaser needs the full history to build the changelog.
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      # Same checks as CI: never publish a binary that would not have passed.
+      - name: Check
+        run: make check
+
+      - name: GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: "~> v2"
+          args: ${{ (github.event_name == 'workflow_dispatch' && inputs.snapshot) && 'release --snapshot --clean' || 'release --clean' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
