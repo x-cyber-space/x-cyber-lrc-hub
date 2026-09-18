@@ -61,32 +61,36 @@ git pull --ff-only
 git branch -D feat/narrow-search-query
 ```
 
-### 为什么第 5 步要写 `-u origin <分支名>`
+### 关于这几条命令的写法
 
-新分支默认没有任何 upstream。在 `push.default=simple`（git 的默认值）下，裸 `git push` 会**直接报错**：
+第 1、8 步的 `git pull --ff-only` 和第 5 步的 `git push -u origin <分支名>` 都是**显式形式**，目的是让行为不依赖任何本地配置或 git 的推断：
 
-```
-fatal: The current branch feat/narrow-search-query has no upstream branch.
-```
+- **`--ff-only`** 保证 `main` 只会快进。如果你本地设了 `pull.rebase=true`，裸 `git pull` 会走 rebase；写显式选项则行为确定。
+- **`-u origin <分支名>`** 不依赖 `push.default` 的取值（若为 `nothing`，裸 `git push` 会直接报错），也不依赖 git 如何推断默认远端。
 
-`-u`（即 `--set-upstream`）在推送的同时建立跟踪关系，之后在这个分支上才可以用裸 `git push`。
-
-同理第 1、8 步的 `--ff-only`：不加它时，本地与远端一旦分叉，`git pull` 会**静默生成一个 merge commit**，与 `main` 要求的线性历史相冲突。
+> 顺带澄清一个常见说法：在 git 2.43 上实测，新建分支上**裸 `git push` 也能成功并自动建立跟踪关系**，无论 `push.autoSetupRemote` 设与不设。所以 `-u` 不是为了绕开某个报错，而是为了让文档里的命令在任何配置下都成立。
 
 ### 可选的本地配置
 
-在**自己机器上**设好下面三条，主流程里就可以写裸 `git push` / 裸 `git pull`：
+**真正推荐的只有一条：**
 
 ```bash
-git config --global fetch.prune true           # 自动清理已删除远端分支的跟踪引用
-git config --global push.autoSetupRemote true  # 新分支直接 git push，不必再写 -u origin <名>
-git config pull.ff only                        # 仅本仓库：分叉时明确报错，而不是静默造一个 merge commit
+git config --global fetch.prune true   # fetch 时自动清理已删除远端分支的跟踪引用
 ```
 
-前两条全局生效，但只会把「原本就报错的情况」变成「成功」——任何原本能用的 `git push` / `git fetch` 行为不变。
-第三条会改变**所有仓库**的 `git pull` 行为（分叉时从静默合并变成报错），所以建议只在本仓库设置。
+不设它，`git branch -a` 会一直列着早已在远端消失的分支（PR 合并后远端会自动删掉它），容易让人以为分支还在。
 
-> **但本文档的流程一律按「没有这些配置」来写。** 换一台机器、或者别人 clone 下来，都应该开箱即用；快捷方式只是可选的个人偏好。
+**另外两条不是必需的**，按个人习惯决定：
+
+```bash
+git config pull.ff only                        # 分叉时报错更直接
+git config --global push.autoSetupRemote true  # 效果存疑，见下
+```
+
+- `pull.ff only`：现代 git 在既没设 `pull.rebase` 也没设 `pull.ff` 时，遇到分叉**本来就会拒绝**并提示你选择如何调和（`fatal: 需要指定如何调和偏离的分支。`）。设成 `only` 只是把提示换成更直接的 `fatal: 无法快进，中止。`——**并不会改变「是否会产生 merge commit」这个结果**，因为默认行为已经不是静默合并了。
+- `push.autoSetupRemote`：在 git 2.43 上实测**没有任何可观测差别**（设 `false` / `true` / 不设，裸 `git push` 都是成功且自动建立 upstream）。它可能在其他 git 版本或别的 `push.default` 取值下有意义，但不应该指望它解决什么。
+
+> **本文档的流程一律按「没有这些配置」来写**，换一台机器或别人 clone 下来都开箱即用。
 
 `gh pr merge --squash --auto` 开启自动合并：9 项必需检查一绿就自动合并，你不必回来点。
 
