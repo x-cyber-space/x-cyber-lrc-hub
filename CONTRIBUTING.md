@@ -25,6 +25,66 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 ---
 
+## 日常开发循环
+
+`main` 有规则集保护，**`git push origin main` 会被直接拒绝**。所有改动都要走分支 + PR：
+
+```bash
+# 1. 开工前同步
+git switch main
+git pull
+
+# 2. 建分支
+git switch -c feat/narrow-search-query
+
+# 3. 改代码，本地自测
+make check
+
+# 4. 提交
+git commit -am "feat: ..."
+
+# 5. 推送（新分支直接 push 即可，会自动建立跟踪关系）
+git push
+
+# 6. 开 PR
+gh pr create --fill
+
+# 7. 等检查并合并
+gh pr checks --watch
+gh pr merge --squash --auto
+
+# 8. 回到 main
+git switch main
+git pull
+git branch -d feat/narrow-search-query
+```
+
+`gh pr merge --squash --auto` 开启自动合并：9 项必需检查一绿就自动合并，你不必回来点。
+
+几条容易踩的：
+
+- **只允许 squash 合并**，所以分支里有多少个「改错了」的提交都无所谓，落到 `main` 上永远是一条干净提交。
+- **分支合并后远端会自动删除**，本地那份要自己删（上面第 8 步）。一次性清理：
+  ```bash
+  git branch --merged main | grep -v '^\*\|main' | xargs -r git branch -d
+  ```
+- **不要在分支上 `git merge main`**；要同步就用 rebase：`git pull --rebase origin main`。
+- **同一 PR 连续推送时，上一次还在跑的 CI 会被取消**（`concurrency` 配置），这是有意的，不用心疼 CI 时间。
+- **Dependabot 的 PR 不需要你建分支**，直接合即可：`gh pr merge <编号> --squash`。
+
+### 推荐的 git 配置
+
+```bash
+git config --global fetch.prune true           # 自动清理已删除远端分支的跟踪引用
+git config --global push.autoSetupRemote true  # 新分支直接 git push，不必再写 -u origin <名>
+git config pull.ff only                        # 仅本仓库：分叉时明确报错，而不是静默造一个 merge commit
+```
+
+前两条全局生效，但只会把「原本就报错的情况」变成「成功」——任何原本能用的 `git push` / `git fetch` 行为不变。
+第三条会改变**所有仓库**的 `git pull` 行为（分叉时从静默合并变成报错），所以建议只在本仓库设置。
+
+---
+
 ## 测试
 
 ```bash
