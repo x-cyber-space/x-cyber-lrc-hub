@@ -94,7 +94,7 @@ Everything that can be expressed as a file lives in the repository:
 
 | Workflow | Trigger | What it does |
 |---|---|---|
-| `ci.yml` | push to main, pull request | gofmt, build, vet, `go test -short -race`, golangci-lint, cross-compile for linux/amd64+arm64, darwin/arm64, windows/amd64 |
+| `ci.yml` | push to main, pull request | gofmt, build, vet, `go test -short -race`, golangci-lint, cross-compile for linux/amd64+arm64, darwin/arm64, windows/amd64, and a build-and-run smoke test of the container image |
 | `codeql.yml` | push/PR to main, weekly | CodeQL `security-and-quality` analysis for Go |
 | `dependency-review.yml` | pull request | fails a PR that adds a dependency with a moderate-or-worse advisory |
 | `scorecard.yml` | push to main, weekly | OpenSSF Scorecard, published and uploaded as SARIF |
