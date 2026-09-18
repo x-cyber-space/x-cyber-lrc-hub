@@ -1,165 +1,88 @@
-# Contributing
+# 贡献指南
 
-Thanks for taking the time to improve `x-cyber-lrc-hub`. This document covers
-the practical bits: how to build, what the checks are, and the couple of
-project-specific rules that are easy to get wrong.
+感谢你有兴趣改进 `x-cyber-lrc-hub`。这份文档只讲实用的部分：怎么构建、要过哪些检查，以及几条**容易搞错的项目专属规矩**。
 
-## Getting started
+---
+
+## 环境准备
 
 ```bash
 git clone https://github.com/x-cyber-space/x-cyber-lrc-hub.git
 cd x-cyber-lrc-hub
 
-make help     # list every target
-make build    # -> bin/x-cyber-lrc-hub
-make check    # everything CI runs: fmt-check, vet, test, lint
+make help     # 列出所有目标
+make build    # 产物在 bin/x-cyber-lrc-hub
+make check    # 一次跑完 CI 的全部检查：fmt-check、vet、test、lint
 ```
 
-Requirements: Go 1.25+, and optionally `golangci-lint` v2
-(`go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`).
-Docker is only needed for `make docker` and for building the release binaries.
-
-## Tests
+依赖：`Go 1.25+`；建议再装 `golangci-lint` v2：
 
 ```bash
-make test       # offline, with -race. This is what CI runs.
-make test-all   # also runs the live-provider smoke test, which needs network.
+go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 ```
 
-The smoke test in `internal/provider` talks to four real music platforms, so it
-is skipped under `-short` and must never be relied on in CI. Everything that
-decides behaviour — matching, caching, protocol shape, the dispatcher — has
-offline coverage driven by stub providers. **If you change behaviour, add an
-offline test for it.**
+`make lint` 会先找 PATH，找不到则回退到 `$(go env GOPATH)/bin`，所以不把 `~/go/bin` 加进 PATH 也能用。Docker 只在 `make docker` 和构建发布产物时才需要。
 
-## Project-specific rules
+---
 
-These exist because each one was a real bug at some point.
+## 测试
 
-### `/api/get` must not guess
+```bash
+make test       # 离线，带 -race。CI 跑的就是这个
+make test-all   # 额外包含真实平台冒烟测试，需要外网
+```
 
-`/api/get` applies hard filters, never a weighted score. A wrong lyric is
-indistinguishable from a right one once a player renders it, whereas a `404`
-lets the client retry through `/api/search` with its own ranking and a user in
-the loop. If you are tempted to "just return the best candidate", don't.
+`internal/provider` 里那条冒烟测试会访问四个真实的音乐平台，所以它在 `-short` 下被跳过，**不能**依赖它在 CI 里把关。
 
-Scoring (`internal/scoring`) is a **ranking** function and belongs to
-`/api/search`. Matching (`internal/matching`) is the **gate** and belongs to
-`/api/get`. A full-marks title contributes 45 points on its own, which is
-exactly why it must not be able to carry an unrelated artist past a threshold.
+所有决定行为的逻辑——匹配、缓存、协议格式、调度器——都有离线覆盖，由 stub provider 驱动。**改了行为就要补离线测试。**
 
-### The cache must not be able to answer a query the cold path would reject
+---
 
-Every cache hit is re-validated with the same predicate the cold path uses
-(`cache.Matches`). If you add a code path that reads the cache, run that
-predicate. A fuzzy search result must never become a confident `/api/get`
-answer just by sitting in the database.
+## 本项目的几条硬规矩
 
-Identity is defined exactly once, in `matching.IdentityKey`, and is shared by
-the storage key and result deduplication. Do not compute it in two places.
+下面每一条都是真实 bug 留下的教训。
 
-### Wire compatibility is verified, not assumed
+### `/api/get` 绝不做猜测
 
-Claims about `lrclib.net`'s behaviour in the README and code comments were
-measured against the live service. If you change the response shape, error
-bodies, or matching rules, probe the real endpoint first and say so in the
-commit message. `docs/SPEC.md` covers the architecture; the README's
-compatibility table is the contract.
+`/api/get` 走的是硬过滤，从来不是加权评分。一旦歌词被播放器渲染出来，**错的和对的看起来完全一样**；而 `404` 是可恢复的——客户端可以退回到 `/api/search`，用自身的排序模型加人工判断来选。所以如果你冒出「干脆返回分数最高的那个」的念头，不要。
 
-### Errors are not "no lyrics"
+打分（`internal/scoring`）是**排序**函数，只服务于 `/api/search`；匹配（`internal/matching`）是**闸门**，只服务于 `/api/get`。歌名满分一项就有 45 分，这正是它**绝不能**把完全不符的歌手拖过阈值的原因。
 
-If every provider fails, that is a `503`, not a `404`. Hiding an outage behind
-"track not found" makes a broken upstream look like a missing song.
+### 缓存不能回答冷路径会拒绝的查询
 
-## Commits and pull requests
+每一次缓存命中都会用**与冷启动完全相同的谓词**重新校验（`cache.Matches`）。新增任何读缓存的代码路径，都必须跑这个谓词。否则一条模糊搜索的结果，只要躺在数据库里就能变成权威的 `/api/get` 答案。
 
-- Commit messages follow [Conventional Commits](https://www.conventionalcommits.org/):
-  `feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`.
-- Explain **why** in the body. The diff already says what changed.
-- Keep `go.mod`, `go.sum` and the CHANGELOG in step with code changes.
-- Run `make check` before opening a pull request; the same checks run in CI.
+身份（identity）只在 `matching.IdentityKey` 里定义**一次**，缓存键和结果去重共用它。不要在第二个地方重新计算。
 
-## Code style
+### 线上格式兼容性靠实测，不靠假设
 
-- `gofmt` is enforced. `golangci-lint` runs with a deliberately small linter
-  set — the goal is catching mistakes, not accumulating opinions.
-- Package names describe their domain. There is no `util`, `common` or
-  `helpers` package, and new ones should not appear.
-- Prefer a comment that explains a non-obvious constraint over one that
-  restates the code.
+README 和代码注释里关于 `lrclib.net` 行为的描述，都是**对着线上服务实测**得出的。改动响应结构、错误体或匹配规则之前，先探测真实端点，并把这个事实写进提交信息。`docs/SPEC.md` 讲架构，README 的兼容性表格是对外契约。
 
-## Repository automation
+### 报错不等于「没有歌词」
 
-Everything that can be expressed as a file lives in the repository:
+如果所有提供方都失败，那是 `503`，不是 `404`。把上游故障伪装成「没有这首歌」，会让坏掉的服务看起来像缺失的资源。
 
-| Workflow | Trigger | What it does |
-|---|---|---|
-| `ci.yml` | push to main, pull request | gofmt, build, vet, `go test -short -race`, golangci-lint, cross-compile for linux/amd64+arm64, darwin/arm64, windows/amd64, and a build-and-run smoke test of the container image |
-| `codeql.yml` | push/PR to main, weekly | CodeQL `security-and-quality` analysis for Go |
-| `dependency-review.yml` | pull request | fails a PR that adds a dependency with a moderate-or-worse advisory |
-| `scorecard.yml` | push to main, weekly | OpenSSF Scorecard, published and uploaded as SARIF |
-| `release.yml` | `v*` tag, manual dispatch | `make check-core`, then GoReleaser archives, then the multi-arch container image to GHCR |
+---
 
-`dependabot.yml` keeps Go modules, the workflow actions and the Docker base
-images current. Third-party actions are pinned to commit SHAs; Dependabot
-updates the pin and its version comment together.
+## 提交与 Pull Request
 
-Two things worth knowing:
+- 提交信息遵循 [Conventional Commits](https://www.conventionalcommits.org/)：`feat:`、`fix:`、`docs:`、`refactor:`、`test:`、`chore:`。
+- **正文写清「为什么」**。diff 已经说明了「改了什么」。
+- `go.mod`、`go.sum` 和 `CHANGELOG.md` 要跟代码改动保持一致。
+- 开 PR 之前跑一遍 `make check`，CI 跑的是同一套。
 
-- **`-short` is not negotiable in CI.** The provider smoke test talks to four
-  real music platforms. It is skipped under `-short` and run by `make test-all`
-  locally.
-- **A tag must point at a commit CI has already passed.** The release workflow
-  does not re-run lint, because golangci-lint is not preinstalled on GitHub
-  runners and the lint job has already gated that commit.
+`main` 有规则集保护：必须走 PR、9 项必需检查全绿、线性历史、只允许 squash 合并。详见 [`docs/AUTOMATION.md`](docs/AUTOMATION.md)。
 
-### Settings that are not files
+---
 
-These live in the GitHub UI (Settings → …) and are **not** version-controlled,
-so they have to be set once per repository, and re-checked if the repository is
-ever recreated. Everything below is already applied to this repository; the
-notes explain what breaks when one is missed.
+## 代码风格
 
-- **Actions → General**: set the default `GITHUB_TOKEN` permission to
-  *read-only*, and restrict allowed actions. The workflows already request only
-  what each job needs.
+- `gofmt` 强制。`golangci-lint` 的检查集**刻意保持很小**——目的是抓错误，不是堆积个人偏好。
+- **包名要描述它所属的领域。** 项目里没有 `util`、`common`、`helpers` 这类包，也不应该新增。
+- 优先写「解释某个不显然的约束」的注释，而不是「复述代码」的注释。
 
-  Two traps here, both of which cost real debugging time:
+---
 
-  1. `verified_allowed` does **not** cover every action this repository uses.
-     `golangci/golangci-lint-action` is not a verified creator, so selecting
-     "GitHub-authored and verified" alone makes the CI workflow fail to start
-     with `startup_failure` and **no annotation explaining why**. The four
-     `docker/*` actions and `goreleaser/goreleaser-action` are allowlisted
-     explicitly for the same reason. Prefer an explicit `patterns_allowed` list
-     over widening the policy to `all`.
-  2. `sha_pinning_required` is safe to enable only because every `uses:` is
-     already a full commit SHA. Adding a tag-referenced action will break the
-     workflow at startup rather than at the step.
+## 仓库自动化
 
-  `actionlint` validates the workflow *files*; it cannot catch either of these,
-  because both are repository policy rather than syntax.
-
-- **Rulesets** (or branch protection) on `main`: require a pull request, require
-  the CI jobs as status checks, require linear history, disallow force pushes
-  and deletions, and require conversation resolution.
-
-  Only list checks that actually run on a pull request. `scorecard analysis`
-  runs on pushes to `main` and on a schedule, never on a pull request — making
-  it required would leave every PR waiting forever for a status that never
-  arrives. The current required set is the six CI jobs plus `analyze (go)`.
-
-- **Tag ruleset** for `v*`: prevent tags from being moved or deleted, since a
-  release is keyed to one.
-- **Code security**: enable the **dependency graph** first — it has no REST API
-  and cannot be switched on programmatically, and without it
-  `dependency-review.yml` fails on every pull request with "Dependency review
-  is not supported on this repository". Then enable Dependabot **security**
-  updates (separate from the version updates `dependabot.yml` configures),
-  secret scanning with push protection, and private vulnerability reporting —
-  `SECURITY.md` links to that last one, so it must actually be switched on.
-- **Pull requests**: allow squash merging only, and enable automatic branch
-  deletion. Both are enforced by the ruleset as well, so the UI setting is the
-  fallback rather than the only guard.
-
-
+工作流清单、Dependabot 配置，以及那些**只能网页端设置、无法版本化**的项目（Actions 白名单、分支规则集、Code security 开关），全部记录在 [`docs/AUTOMATION.md`](docs/AUTOMATION.md)。

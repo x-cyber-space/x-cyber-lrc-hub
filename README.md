@@ -363,9 +363,9 @@ CI（`.github/workflows/ci.yml`）在每次 push / PR 上执行：`gofmt` 校验
 
 其余自动化：`codeql.yml`（Go 安全与质量分析，push + 每周）、`dependency-review.yml`（PR 引入中危及以上依赖时直接失败）、`scorecard.yml`（OpenSSF Scorecard）、`dependabot.yml`（Go 模块 / Actions / Docker 基础镜像）。第三方 action 全部按 commit SHA 固定，由 Dependabot 连带版本注释一起更新。
 
-> 仓库的 branch protection / ruleset、Dependabot security updates、secret scanning、private vulnerability reporting 等设置位于 GitHub 网页端，无法随代码版本化 —— 清单见 [CONTRIBUTING.md](./CONTRIBUTING.md#settings-that-are-not-files)。
+> 仓库的 branch protection / ruleset、Dependabot security updates、secret scanning、private vulnerability reporting 等设置位于 GitHub 网页端，无法随代码版本化 —— 完整清单与踩坑记录见 [`docs/AUTOMATION.md`](./docs/AUTOMATION.md)。
 
-其余文件：`CHANGELOG.md`、`CONTRIBUTING.md`、`SECURITY.md`、`docs/SPEC.md`。
+其余文件：`CHANGELOG.md`、`CONTRIBUTING.md`、`SECURITY.md`、`docs/SPEC.md`、`docs/AUTOMATION.md`。
 
 发布配置（`.goreleaser.yml`）可以在本地校验：`make release-check`。注意用 docker 跑 `goreleaser release --snapshot` 会在 `dist/` 留下 **root 属主**的文件，所以本地一般只做校验，真正的打包交给 CI。
 
