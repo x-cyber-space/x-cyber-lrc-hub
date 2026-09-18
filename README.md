@@ -359,7 +359,11 @@ go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
 
 CI（`.github/workflows/ci.yml`）在每次 push / PR 上执行：`gofmt` 校验、`go build`、`go vet`、`go test -short -race`、`golangci-lint`，并在 `linux/amd64`、`linux/arm64`、`darwin/arm64`、`windows/amd64` 上做 `CGO_ENABLED=0` 交叉编译验证 —— 因为"单一静态二进制"是这个项目的核心承诺，必须每个目标都能真的构建出来。
 
-推送 `v*` 标签会触发 `.github/workflows/release.yml`，先跑一遍同样的 `make check`，再用 GoReleaser 构建各平台产物并创建 draft release。
+推送 `v*` 标签会触发 `.github/workflows/release.yml`：先跑 `make check-core`，再用 GoReleaser 构建各平台产物并创建 draft release，最后把 `linux/amd64` + `linux/arm64` 的多架构镜像推到 GHCR（`ghcr.io/x-cyber-space/x-cyber-lrc-hub`）。
+
+其余自动化：`codeql.yml`（Go 安全与质量分析，push + 每周）、`dependency-review.yml`（PR 引入中危及以上依赖时直接失败）、`scorecard.yml`（OpenSSF Scorecard）、`dependabot.yml`（Go 模块 / Actions / Docker 基础镜像）。第三方 action 全部按 commit SHA 固定，由 Dependabot 连带版本注释一起更新。
+
+> 仓库的 branch protection / ruleset、Dependabot security updates、secret scanning、private vulnerability reporting 等设置位于 GitHub 网页端，无法随代码版本化 —— 清单见 [CONTRIBUTING.md](./CONTRIBUTING.md#settings-that-are-not-files)。
 
 其余文件：`CHANGELOG.md`、`CONTRIBUTING.md`、`SECURITY.md`、`docs/SPEC.md`。
 

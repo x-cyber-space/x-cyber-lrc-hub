@@ -87,3 +87,50 @@ If every provider fails, that is a `503`, not a `404`. Hiding an outage behind
   `helpers` package, and new ones should not appear.
 - Prefer a comment that explains a non-obvious constraint over one that
   restates the code.
+
+## Repository automation
+
+Everything that can be expressed as a file lives in the repository:
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | push to main, pull request | gofmt, build, vet, `go test -short -race`, golangci-lint, cross-compile for linux/amd64+arm64, darwin/arm64, windows/amd64 |
+| `codeql.yml` | push/PR to main, weekly | CodeQL `security-and-quality` analysis for Go |
+| `dependency-review.yml` | pull request | fails a PR that adds a dependency with a moderate-or-worse advisory |
+| `scorecard.yml` | push to main, weekly | OpenSSF Scorecard, published and uploaded as SARIF |
+| `release.yml` | `v*` tag, manual dispatch | `make check-core`, then GoReleaser archives, then the multi-arch container image to GHCR |
+
+`dependabot.yml` keeps Go modules, the workflow actions and the Docker base
+images current. Third-party actions are pinned to commit SHAs; Dependabot
+updates the pin and its version comment together.
+
+Two things worth knowing:
+
+- **`-short` is not negotiable in CI.** The provider smoke test talks to four
+  real music platforms. It is skipped under `-short` and run by `make test-all`
+  locally.
+- **A tag must point at a commit CI has already passed.** The release workflow
+  does not re-run lint, because golangci-lint is not preinstalled on GitHub
+  runners and the lint job has already gated that commit.
+
+### Settings that are not files
+
+These live in the GitHub UI (Settings → …) and are **not** version-controlled,
+so they have to be set once per repository, and re-checked if the repository is
+ever recreated:
+
+- **Actions → General**: set the default `GITHUB_TOKEN` permission to
+  *read-only*, and restrict allowed actions to GitHub-authored plus verified
+  actions. The workflows already request only what each job needs.
+- **Rulesets** (or branch protection) on `main`: require a pull request,
+  require the CI jobs as status checks, require linear history, disallow force
+  pushes and deletions, and require conversation resolution.
+- **Tag ruleset** for `v*`: prevent tags from being moved or deleted, since a
+  release is keyed to one.
+- **Code security**: enable Dependabot **security** updates (separate from the
+  version updates `dependabot.yml` configures), secret scanning with push
+  protection, and private vulnerability reporting — `SECURITY.md` links to that
+  last one, so it must actually be switched on.
+- **Pull requests**: allow squash merging only, and enable automatic branch
+  deletion.
+

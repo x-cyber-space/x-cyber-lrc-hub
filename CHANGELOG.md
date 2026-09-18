@@ -59,6 +59,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   darwin/arm64 and windows/amd64.
 - `Dockerfile` (multi-stage, static, non-root), `Makefile`, `.golangci.yml`,
   `.editorconfig`, Dependabot and release automation.
+- CodeQL, dependency review and OpenSSF Scorecard workflows; Dependabot for Go
+  modules, GitHub Actions and the Docker base image. Third-party actions are
+  pinned to commit SHAs.
+- Releases publish GoReleaser archives and a multi-arch container image to GHCR
+  (`ghcr.io/x-cyber-space/x-cyber-lrc-hub`).
 - SQLite runs in WAL mode with `synchronous=NORMAL`; server sets
   `ReadHeaderTimeout`; panics log a stack trace.
 
