@@ -56,7 +56,7 @@ gh pr merge --squash --auto
 # 8. 回到 main
 git switch main
 git pull
-git branch -d feat/narrow-search-query
+git branch -D feat/narrow-search-query
 ```
 
 `gh pr merge --squash --auto` 开启自动合并：9 项必需检查一绿就自动合并，你不必回来点。
@@ -64,10 +64,19 @@ git branch -d feat/narrow-search-query
 几条容易踩的：
 
 - **只允许 squash 合并**，所以分支里有多少个「改错了」的提交都无所谓，落到 `main` 上永远是一条干净提交。
-- **分支合并后远端会自动删除**，本地那份要自己删（上面第 8 步）。一次性清理：
+- **清理本地分支必须用 `-D`，不能用 `-d`。** squash 合并产生的是一个**全新提交**，不是分支提交的后代，所以 `git branch -d` 的「是否已合并」检查**必然失败**，报 `not fully merged` —— 而内容其实已经合进去了。同理，`git branch --merged main` 也不会列出已 squash 合并的分支。
+
+  安全的一次性清理：以「远端分支已被删除」为判据（PR 合并后远端会自动删掉它），与输出语言环境无关：
+
   ```bash
-  git branch --merged main | grep -v '^\*\|main' | xargs -r git branch -d
+  git fetch --prune
+  git for-each-ref --format='%(refname:short)|%(upstream)' refs/heads | while IFS='|' read -r b u; do
+    [ -z "$u" ] && continue
+    git rev-parse -q --verify "$u" >/dev/null 2>&1 || git branch -D "$b"
+  done
   ```
+
+  它只删「配了 upstream 但该 upstream 引用已消失」的分支，`main` 这类仍在正常跟踪的会被跳过。
 - **不要在分支上 `git merge main`**；要同步就用 rebase：`git pull --rebase origin main`。
 - **同一 PR 连续推送时，上一次还在跑的 CI 会被取消**（`concurrency` 配置），这是有意的，不用心疼 CI 时间。
 - **Dependabot 的 PR 不需要你建分支**，直接合即可：`gh pr merge <编号> --squash`。
