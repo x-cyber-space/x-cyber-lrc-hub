@@ -87,3 +87,79 @@ If every provider fails, that is a `503`, not a `404`. Hiding an outage behind
   `helpers` package, and new ones should not appear.
 - Prefer a comment that explains a non-obvious constraint over one that
   restates the code.
+
+## Repository automation
+
+Everything that can be expressed as a file lives in the repository:
+
+| Workflow | Trigger | What it does |
+|---|---|---|
+| `ci.yml` | push to main, pull request | gofmt, build, vet, `go test -short -race`, golangci-lint, cross-compile for linux/amd64+arm64, darwin/arm64, windows/amd64 |
+| `codeql.yml` | push/PR to main, weekly | CodeQL `security-and-quality` analysis for Go |
+| `dependency-review.yml` | pull request | fails a PR that adds a dependency with a moderate-or-worse advisory |
+| `scorecard.yml` | push to main, weekly | OpenSSF Scorecard, published and uploaded as SARIF |
+| `release.yml` | `v*` tag, manual dispatch | `make check-core`, then GoReleaser archives, then the multi-arch container image to GHCR |
+
+`dependabot.yml` keeps Go modules, the workflow actions and the Docker base
+images current. Third-party actions are pinned to commit SHAs; Dependabot
+updates the pin and its version comment together.
+
+Two things worth knowing:
+
+- **`-short` is not negotiable in CI.** The provider smoke test talks to four
+  real music platforms. It is skipped under `-short` and run by `make test-all`
+  locally.
+- **A tag must point at a commit CI has already passed.** The release workflow
+  does not re-run lint, because golangci-lint is not preinstalled on GitHub
+  runners and the lint job has already gated that commit.
+
+### Settings that are not files
+
+These live in the GitHub UI (Settings → …) and are **not** version-controlled,
+so they have to be set once per repository, and re-checked if the repository is
+ever recreated. Everything below is already applied to this repository; the
+notes explain what breaks when one is missed.
+
+- **Actions → General**: set the default `GITHUB_TOKEN` permission to
+  *read-only*, and restrict allowed actions. The workflows already request only
+  what each job needs.
+
+  Two traps here, both of which cost real debugging time:
+
+  1. `verified_allowed` does **not** cover every action this repository uses.
+     `golangci/golangci-lint-action` is not a verified creator, so selecting
+     "GitHub-authored and verified" alone makes the CI workflow fail to start
+     with `startup_failure` and **no annotation explaining why**. The four
+     `docker/*` actions and `goreleaser/goreleaser-action` are allowlisted
+     explicitly for the same reason. Prefer an explicit `patterns_allowed` list
+     over widening the policy to `all`.
+  2. `sha_pinning_required` is safe to enable only because every `uses:` is
+     already a full commit SHA. Adding a tag-referenced action will break the
+     workflow at startup rather than at the step.
+
+  `actionlint` validates the workflow *files*; it cannot catch either of these,
+  because both are repository policy rather than syntax.
+
+- **Rulesets** (or branch protection) on `main`: require a pull request, require
+  the CI jobs as status checks, require linear history, disallow force pushes
+  and deletions, and require conversation resolution.
+
+  Only list checks that actually run on a pull request. `scorecard analysis`
+  runs on pushes to `main` and on a schedule, never on a pull request — making
+  it required would leave every PR waiting forever for a status that never
+  arrives. The current required set is the six CI jobs plus `analyze (go)`.
+
+- **Tag ruleset** for `v*`: prevent tags from being moved or deleted, since a
+  release is keyed to one.
+- **Code security**: enable the **dependency graph** first — it has no REST API
+  and cannot be switched on programmatically, and without it
+  `dependency-review.yml` fails on every pull request with "Dependency review
+  is not supported on this repository". Then enable Dependabot **security**
+  updates (separate from the version updates `dependabot.yml` configures),
+  secret scanning with push protection, and private vulnerability reporting —
+  `SECURITY.md` links to that last one, so it must actually be switched on.
+- **Pull requests**: allow squash merging only, and enable automatic branch
+  deletion. Both are enforced by the ruleset as well, so the UI setting is the
+  fallback rather than the only guard.
+
+

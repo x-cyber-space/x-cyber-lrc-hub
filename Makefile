@@ -60,6 +60,12 @@ lint: ## Run golangci-lint in addition to gofmt and vet
 .PHONY: check
 check: fmt-check vet test lint ## Run every check CI runs
 
+# The subset needing no extra tooling installed. The release workflow uses this
+# because golangci-lint is not preinstalled on GitHub runners, and CI runs lint
+# in a dedicated job that installs it properly.
+.PHONY: check-core
+check-core: fmt-check vet test ## Run every check that needs no extra tooling
+
 .PHONY: run
 run: build ## Build and run locally
 	./$(BIN_DIR)/$(BINARY)
