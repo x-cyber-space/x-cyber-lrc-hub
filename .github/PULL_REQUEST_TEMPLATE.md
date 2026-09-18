@@ -1,21 +1,21 @@
-## What and why
+## 改了什么、为什么
 
-<!-- The diff says what changed; explain why it needed to. -->
+<!-- diff 已经说明了「改了什么」；这里解释「为什么必须改」。 -->
 
-## How it was verified
+## 如何验证
 
-<!-- e.g. "make check", plus any manual curl against a running server. -->
+<!-- 例如 `make check`，以及对运行中的服务做的手工 curl。 -->
 
-- [ ] `make check` passes (`fmt-check`, `vet`, offline tests with `-race`, lint)
+- [ ] `make check` 通过（`fmt-check`、`vet`、带 `-race` 的离线测试、lint）
 
-## Checklist
+## 检查清单
 
-- [ ] Behaviour changes have an offline test (a stub provider, not the network).
-- [ ] Wire-format changes were checked against the live `lrclib.net` endpoint.
-- [ ] `/api/get` still applies hard filters rather than returning a best-guess.
-- [ ] `CHANGELOG.md` updated for anything user-visible.
-- [ ] `README.md` updated if flags, endpoints or compatibility changed.
+- [ ] 行为变更配了离线测试（用 stub provider，不依赖网络）。
+- [ ] 线上格式的改动已对真实的 `lrclib.net` 端点核对过。
+- [ ] `/api/get` 仍然是硬过滤，没有退化成「返回最像的那个」。
+- [ ] 用户可见的改动已更新 `CHANGELOG.md`。
+- [ ] 参数、端点或兼容性有变动时已更新 `README.md`。
 
-## Related issues
+## 关联 issue
 
 <!-- Closes #... -->

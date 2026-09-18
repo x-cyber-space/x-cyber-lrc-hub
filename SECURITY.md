@@ -1,57 +1,42 @@
-# Security Policy
+# 安全策略
 
-## Reporting a vulnerability
+## 报告安全漏洞
 
-Please report security issues **privately** rather than opening a public issue.
+请**私下**报告安全问题，不要开公开的 issue。
 
-Use GitHub's [private vulnerability reporting][report] on this repository. If
-that is unavailable, contact the maintainer directly.
+用本仓库的 GitHub [私密漏洞报告][report] 功能。如果该功能不可用，直接联系维护者。
 
-Please include:
+请包含以下内容：
 
-- what the issue is and where it lives (file, endpoint, flag),
-- how to reproduce it,
-- the impact you believe it has,
-- any suggested fix, if you have one.
+- 问题是什么、位于哪里（文件、端点、命令行参数）
+- 如何复现
+- 你认为的影响
+- 如果有修复建议，也一并给出
 
-You can expect an acknowledgement within a few days. This is a small,
-volunteer-maintained project, so please allow reasonable time before
-disclosing publicly.
+一般会在几天内确认收到。这是一个由志愿者维护的小项目，公开披露前请留出合理的处理时间。
 
 [report]: https://docs.github.com/en/code-security/security-advisories/guidance-on-reporting-and-writing-information-about-vulnerabilities/privately-reporting-a-security-vulnerability
 
-## Supported versions
+## 支持的版本
 
-Only the latest release on the `main` branch receives fixes.
+只有 `main` 分支上的最新版本会收到修复。
 
-## Scope and threat model
+## 范围与威胁模型
 
-`x-cyber-lrc-hub` is designed to run on a home network, typically behind a NAS
-or router, and it ships **without authentication**. Understanding that is part
-of evaluating any report.
+`x-cyber-lrc-hub` 面向家庭网络运行（通常挂在 NAS 或路由器后面），并且**不带任何认证**。评估任何报告时，这一点都是前提。
 
-In scope:
+### 属于受理范围
 
-- Anything that lets a request escape the intended HTTP surface: path
-  traversal, injection into the SQLite cache, request smuggling.
-- Memory or goroutine exhaustion from a single request (unbounded reads,
-  unbounded fan-out, missing timeouts).
-- Leaking local files or environment through a response or a log line.
+- 任何能让请求逃出预期 HTTP 表面的问题：路径穿越、向 SQLite 缓存注入、请求走私。
+- 单个请求即可导致的 memory / goroutine 耗尽（无界读取、无界并发扇出、缺少超时）。
+- 通过响应或日志泄漏本地文件或环境变量。
 
-Known and accepted by design:
+### 已知且有意为之
 
-- **No authentication.** Anyone who can reach the port can use the service.
-  Do not expose it to the public internet; put it behind a reverse proxy that
-  authenticates, or keep it on your LAN.
-- **`Access-Control-Allow-Origin: *`.** This is required for browser-based
-  LRCLIB clients to work against a self-hosted instance. Be aware that it also
-  means any web page you visit can issue requests to your instance, which will
-  then originate from your IP. Restrict it with a proxy if that matters to you.
-- **Third-party lyrics are fetched over the network.** The scraped content is
-  returned as data and never executed, but it is not validated for accuracy or
-  licensing.
+- **没有认证。** 任何能连到端口的人都能使用本服务。**不要把它暴露到公网**；要么放在带认证的反向代理后面，要么就只留在局域网里。
+- **`Access-Control-Allow-Origin: *`。** 浏览器端的 LRCLIB 客户端要能访问自建实例，就必须允许这个头。但请注意它同时意味着：**你访问的任何网页都可以向你的实例发起请求**，而这些请求会以你的 IP 发出。如果在意这点，用反向代理限制来源。
+- **第三方歌词是联网抓取的。** 抓到的内容只作为数据返回、从不执行，但其准确性与版权状态都未经校验。
 
-## Handling of secrets
+## 密钥处理
 
-The service stores no credentials. The only persistent state is a SQLite file
-at the path given by `-cache`, containing track metadata and lyrics.
+本服务不保存任何凭据。唯一的持久化状态是 `-cache` 指定路径上的一个 SQLite 文件，内容为曲目元数据与歌词。

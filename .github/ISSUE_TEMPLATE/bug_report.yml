@@ -1,29 +1,27 @@
-name: Bug report
-description: Something is broken or behaves unexpectedly
+name: 缺陷报告
+description: 有东西坏了，或行为不符合预期
 labels: [bug]
 body:
   - type: markdown
     attributes:
       value: |
-        Before filing, please check the README's compatibility table — a
-        mismatch with `lrclib.net` may already be documented as a known
-        difference.
+        提交之前请先看一眼 README 的兼容性表格 —— 与 `lrclib.net` 的差异
+        可能已经作为「已知差异」写在那里了。
 
   - type: textarea
     id: what-happened
     attributes:
-      label: What happened
-      description: Also tell us what you expected instead.
+      label: 实际发生了什么
+      description: 同时说一下你原本期望的结果。
     validations:
       required: true
 
   - type: textarea
     id: repro
     attributes:
-      label: Steps to reproduce
+      label: 复现步骤
       description: |
-        For an API problem, the exact request is the most useful thing you can
-        give us.
+        如果是接口问题，把那条请求原样贴出来是最有用的信息。
       placeholder: |
         curl -s "http://localhost:3300/api/get?track_name=...&artist_name=..."
     validations:
@@ -32,8 +30,8 @@ body:
   - type: textarea
     id: response
     attributes:
-      label: Actual response
-      description: Include the status code and body, plus any relevant log line.
+      label: 实际响应
+      description: 请包含状态码与响应体，以及相关的日志行。
       render: text
     validations:
       required: true
@@ -41,8 +39,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: Version
-      description: From the startup banner, or the release tag.
+      label: 版本
+      description: 启动 banner 里的版本号，或 release 标签。
       placeholder: v1.0.0
     validations:
       required: true
@@ -50,20 +48,20 @@ body:
   - type: input
     id: environment
     attributes:
-      label: Environment
-      description: OS/arch, and how you run it (binary, Docker, NAS package).
-      placeholder: Debian 12 / amd64, Docker
+      label: 运行环境
+      description: 操作系统/架构，以及运行方式（二进制、Docker、NAS 套件）。
+      placeholder: Debian 12 / amd64，Docker
     validations:
       required: true
 
   - type: dropdown
     id: client
     attributes:
-      label: Which client made the request?
+      label: 是哪个客户端发起的请求？
       options:
-        - A music player (Symfonium, ZZMusicPlayer, ...)
-        - curl / manual request
-        - My own application
-        - Other
+        - 音乐播放器（Symfonium、ZZMusicPlayer 等）
+        - curl / 手工请求
+        - 我自己写的程序
+        - 其他
     validations:
       required: true

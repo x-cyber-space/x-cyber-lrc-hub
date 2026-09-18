@@ -1,35 +1,35 @@
-name: Feature request
-description: Suggest a capability or behaviour change
+name: 功能建议
+description: 提议一个新能力或行为变更
 labels: [enhancement]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: The problem
-      description: What are you trying to do that the project makes hard today?
+      label: 你遇到的问题
+      description: 你想做什么，而项目现在让它很难做到？
     validations:
       required: true
 
   - type: textarea
     id: proposal
     attributes:
-      label: Proposed solution
+      label: 建议的方案
     validations:
       required: true
 
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
+      label: 考虑过的其他方案
 
   - type: checkboxes
     id: constraints
     attributes:
-      label: Project constraints
+      label: 项目约束
       description: |
-        These are load-bearing design decisions, not preferences. A proposal
-        that needs one of them relaxed should say so explicitly.
+        下面几条是**承重的设计决策**，不是偏好。如果你的方案需要放宽其中
+        某一条，请在正文里明确说明。
       options:
-        - label: This does not require an external model or online service.
-        - label: This keeps `/api/get` a hard filter rather than a scored guess.
-        - label: This keeps the response shape compatible with `lrclib.net`.
+        - label: 不依赖任何外部模型或在线服务。
+        - label: 让 `/api/get` 保持硬过滤，而不是打分猜一个。
+        - label: 响应结构与 `lrclib.net` 保持兼容。
