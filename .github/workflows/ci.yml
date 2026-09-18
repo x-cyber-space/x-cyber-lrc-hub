@@ -6,6 +6,13 @@ on:
   pull_request:
   workflow_dispatch:
 
+# A new push to a pull request makes the previous run pointless, so cancel it.
+# Runs on main are left alone so the branch always has a complete result.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+# Default to no write access; jobs opt in to what they need.
 permissions:
   contents: read
 
@@ -13,15 +20,16 @@ jobs:
   test:
     name: build, vet and test
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
-      # Reuse the Makefile target so CI and a local run cannot drift apart.
+      # Reuse the Makefile targets so CI and a local run cannot drift apart.
       - name: Verify gofmt
         run: make fmt-check
 
@@ -29,7 +37,7 @@ jobs:
         run: go build ./...
 
       - name: Vet
-        run: go vet ./...
+        run: make vet
 
       # -short keeps the live-provider smoke test out of CI: it depends on four
       # third-party music platforms and would make the build flaky.
@@ -39,28 +47,26 @@ jobs:
   lint:
     name: golangci-lint
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
 
-      # Pinned rather than "latest" so a new linter release cannot turn the
-      # build red without a commit here. v2 is required by the .golangci.yml
-      # schema.
-      - name: Lint
-        run: |
-          docker run --rm \
-            -v "$PWD":/app -w /app \
-            -e GOFLAGS=-mod=readonly \
-            golangci/golangci-lint:v2.13.2 \
-            golangci-lint run --timeout 5m
+      # v2 of the linter is required by the .golangci.yml schema. Pinning the
+      # linter version stops a new release from turning the build red on its own.
+      - uses: golangci/golangci-lint-action@4afd733a84b1f43292c63897423277bb7f4313a9 # v8
+        with:
+          version: v2.13.2
+          args: --timeout 5m
 
   cross-compile:
     name: cross-compile (${{ matrix.goos }}/${{ matrix.goarch }})
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
@@ -70,9 +76,9 @@ jobs:
           - { goos: darwin, goarch: arm64 }
           - { goos: windows, goarch: amd64 }
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version-file: go.mod
           cache: true
